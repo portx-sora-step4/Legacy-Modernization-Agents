@@ -67,6 +67,8 @@ This project supports **five AI providers** with automatic model capability dete
 [Codex Python SDK](https://learn.chatgpt.com/docs/codex-sdk) and reuses a ChatGPT
 login. It does not send an API key through the application configuration.
 
+Python 3.10 or later is required.
+
 ```bash
 python3 -m venv .venv-codex
 . .venv-codex/bin/activate

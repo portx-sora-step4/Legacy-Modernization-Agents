@@ -108,6 +108,16 @@ public sealed class CodexSdkChatClientTests
         ChatClientFactory.GetProviderName(null, serviceType).Should().Be(expected);
     }
 
+    [Fact]
+    public void GetService_ReturnsMetadataOnlyForUnkeyedMetadataRequest()
+    {
+        using var client = CreateClient();
+
+        client.GetService(typeof(ChatClientMetadata)).Should().BeEquivalentTo(client.Metadata);
+        client.GetService(typeof(ChatClientMetadata), "someKey").Should().BeNull();
+        client.GetService(typeof(IChatClient)).Should().BeNull();
+    }
+
     private static CodexSdkChatClient CreateClient(TimeSpan? timeout = null) =>
         new("gpt-5.4", CreateOptions(timeout ?? TimeSpan.FromSeconds(5)));
 

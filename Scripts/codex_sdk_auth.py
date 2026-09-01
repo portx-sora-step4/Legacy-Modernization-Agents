@@ -14,7 +14,7 @@ def _value(value):
     return getattr(value, "value", value)
 
 
-def _safe_error_message(exc: Exception) -> str:
+def _safe_error_message(exc: object) -> str:
     message = " ".join(str(exc).split()) or type(exc).__name__
     message = re.sub(
         r"(?i)(authorization:\s*bearer\s+)[^\s,;]+",
@@ -61,13 +61,34 @@ def show_status() -> int:
 
 
 def login_device() -> int:
-    with Codex() as codex:
-        login = codex.login_chatgpt_device_code()
-        print(f"Verification URL: {login.verification_url}", flush=True)
-        print(f"User code: {login.user_code}", flush=True)
-        result = login.wait()
+    try:
+        with Codex() as codex:
+            login = codex.login_chatgpt_device_code()
+            print(f"Verification URL: {login.verification_url}", flush=True)
+            print(f"User code: {login.user_code}", flush=True)
+            result = login.wait()
+    except Exception as exc:
+        print(
+            json.dumps(
+                {"success": False, "error": _safe_error_message(exc)},
+                ensure_ascii=False,
+            )
+        )
+        return 1
 
-    print(json.dumps({"success": result.success, "error": result.error}))
+    print(
+        json.dumps(
+            {
+                "success": result.success,
+                "error": (
+                    _safe_error_message(result.error)
+                    if result.error is not None
+                    else None
+                ),
+            },
+            ensure_ascii=False,
+        )
+    )
     return 0 if result.success else 1
 
 

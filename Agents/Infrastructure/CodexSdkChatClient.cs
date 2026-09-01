@@ -139,7 +139,10 @@ public sealed class CodexSdkChatClient : IChatClient, IAsyncDisposable
         }
     }
 
-    public object? GetService(Type serviceType, object? serviceKey = null) => null;
+    public object? GetService(Type serviceType, object? serviceKey = null) =>
+        serviceKey is null && serviceType == typeof(ChatClientMetadata)
+            ? Metadata
+            : null;
 
     public void Dispose() => _disposed = true;
 
