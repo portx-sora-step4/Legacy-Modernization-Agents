@@ -457,7 +457,7 @@ public class DependencyMapperAgent : AgentBase, IDependencyMapperAgent
         for (var index = 0; index < lines.Length; index++)
         {
             var line = lines[index];
-            var isFixedFormatComment = line.Length > 6 && line[6] == '*';
+            var isFixedFormatComment = line.Length > 6 && (line[6] == '*' || line[6] == '/');
             var isFreeFormatComment = line.TrimStart().StartsWith("*>", StringComparison.Ordinal);
             if (!isFixedFormatComment && !isFreeFormatComment && referencePattern.IsMatch(line))
             {

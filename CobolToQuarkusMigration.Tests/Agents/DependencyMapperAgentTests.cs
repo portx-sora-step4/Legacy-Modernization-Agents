@@ -46,9 +46,10 @@ public class DependencyMapperAgentTests
     public void FindCopybookReferenceLine_CommentedReference_UsesExecutableStatement()
     {
         var source = "      * COPY CUSTOMER-DATA.\n" +
+                     "      / COPY CUSTOMER-DATA.\n" +
                      "       COPY CUSTOMER-DATA.\n";
 
         DependencyMapperAgent.FindCopybookReferenceLine(source, "CUSTOMER-DATA.cpy")
-            .Should().Be(2);
+            .Should().Be(3);
     }
 }
