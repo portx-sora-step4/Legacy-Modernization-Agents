@@ -16,6 +16,7 @@ namespace CobolToQuarkusMigration.Agents.Infrastructure;
 ///   - Azure OpenAI (existing)
 ///   - GitHub Copilot / GitHub Models (new — access Claude, Codex, Grok, GPT, etc.)
 ///   - Direct OpenAI API
+///   - Local Codex SDK with ChatGPT authentication
 ///
 /// All methods return Microsoft.Extensions.AI.IChatClient, keeping the rest
 /// of the application provider-agnostic.
@@ -55,9 +56,12 @@ public static class ChatClientFactory
             "openai" =>
                 CreateOpenAIChatClient(settings.ApiKey, model, logger),
 
+            "codexsdk" =>
+                CreateCodexSdkChatClient(settings, model, logger),
+
             _ => throw new ArgumentException(
                 $"Unsupported AI service type: '{settings.ServiceType}'. " +
-                "Supported values: AzureOpenAI, GitHubCopilotSDK, OpenAI.",
+                "Supported values: AzureOpenAI, GitHubCopilotSDK, OpenAI, CodexSDK.",
                 nameof(settings))
         };
     }
@@ -81,7 +85,13 @@ public static class ChatClientFactory
             Endpoint = chatEndpoint,
             ApiKey = chatApiKey,
             ModelId = chatModel,
-            DeploymentName = settings.ChatDeploymentName ?? settings.DeploymentName
+            DeploymentName = settings.ChatDeploymentName ?? settings.DeploymentName,
+            CodexSdkPythonPath = settings.CodexSdkPythonPath,
+            CodexSdkScriptPath = settings.CodexSdkScriptPath,
+            CodexSdkWorkingDirectory = settings.CodexSdkWorkingDirectory,
+            CodexSdkSandbox = settings.CodexSdkSandbox,
+            CodexSdkCodexPath = settings.CodexSdkCodexPath,
+            CodexSdkTimeoutSeconds = settings.CodexSdkTimeoutSeconds
         };
 
         return CreateFromSettings(chatSettings, chatModel, logger);
@@ -180,6 +190,37 @@ public static class ChatClientFactory
     }
 
     // ═══════════════════════════════════════════════════════════════════════
+    // CODEX SDK (LOCAL APP SERVER + CHATGPT AUTH)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    public static IChatClient CreateCodexSdkChatClient(
+        AISettings settings,
+        string modelId,
+        ILogger? logger = null)
+    {
+        if (string.IsNullOrWhiteSpace(modelId))
+            throw new ArgumentNullException(nameof(modelId));
+
+        logger?.LogInformation(
+            "Creating local Codex SDK chat client for model {Model} with sandbox {Sandbox}",
+            modelId,
+            settings.CodexSdkSandbox);
+
+        return new CodexSdkChatClient(
+            modelId,
+            new CodexSdkChatClientOptions
+            {
+                PythonExecutable = settings.CodexSdkPythonPath,
+                SidecarScriptPath = settings.CodexSdkScriptPath,
+                WorkingDirectory = settings.CodexSdkWorkingDirectory,
+                Sandbox = settings.CodexSdkSandbox,
+                CodexExecutable = settings.CodexSdkCodexPath,
+                RequestTimeout = TimeSpan.FromSeconds(settings.CodexSdkTimeoutSeconds)
+            },
+            logger);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
     // GITHUB COPILOT SDK (Copilot CLI)
     // ═══════════════════════════════════════════════════════════════════════
 
@@ -234,6 +275,15 @@ public static class ChatClientFactory
             return CreateGitHubCopilotChatClient(modelId, githubToken: null, logger);
         }
 
+        if (string.Equals(serviceType, "CodexSDK", StringComparison.OrdinalIgnoreCase))
+        {
+            return CreateCodexSdkChatClient(new AISettings
+            {
+                ServiceType = "CodexSDK",
+                ModelId = modelId
+            }, modelId, logger);
+        }
+
         if (!string.IsNullOrEmpty(endpoint))
         {
             if (useDefaultCredential)
@@ -269,4 +319,21 @@ public static class ChatClientFactory
     }
 
     private static AzureOpenAIOptions CreateAzureOptions() => new AzureOpenAIOptions(AzureApiVersion);
+
+    public static string GetProviderName(IChatClient? client, string? serviceType = null)
+    {
+        if (serviceType?.Equals("OpenAI", StringComparison.OrdinalIgnoreCase) == true)
+            return "OpenAI";
+        if (serviceType?.Equals("CodexSDK", StringComparison.OrdinalIgnoreCase) == true)
+            return "Codex SDK";
+        if (serviceType?.StartsWith("GitHub", StringComparison.OrdinalIgnoreCase) == true)
+            return "GitHub Copilot";
+
+        return client switch
+        {
+            CopilotChatClient => "GitHub Copilot",
+            CodexSdkChatClient => "Codex SDK",
+            _ => "Azure OpenAI"
+        };
+    }
 }
