@@ -50,7 +50,9 @@ public class ChunkedMigrationProcess
         _fileHelper = fileHelper;
         _settings = settings;
         _enhancedLogger = new EnhancedLogger(logger);
-        var providerName = chatClient is Agents.Infrastructure.CopilotChatClient ? "GitHub Copilot" : "Azure OpenAI";
+        var providerName = Agents.Infrastructure.ChatClientFactory.GetProviderName(
+            chatClient,
+            settings.AISettings.ServiceType);
         _chatLogger = new ChatLogger(LoggerFactory.Create(builder => builder.AddConsole()).CreateLogger<ChatLogger>(), providerName: providerName);
         _migrationRepository = migrationRepository;
     }

@@ -20,6 +20,7 @@ namespace CobolToQuarkusMigration;
 /// - AzureOpenAI (ResponsesApiClient for Codex + IChatClient for chat)
 /// - GitHubCopilot (IChatClient for all models: Claude, Codex, GPT, Grok, etc.)
 /// - OpenAI (IChatClient for GPT models)
+/// - CodexSDK (local Codex app server using ChatGPT authentication)
 /// </summary>
 internal static class Program
 {
@@ -530,9 +531,10 @@ internal static class Program
             if (string.IsNullOrEmpty(settings.AISettings.Endpoint) &&
                 !settings.AISettings.ServiceType.Equals("GitHubCopilot", StringComparison.OrdinalIgnoreCase) &&
                 !settings.AISettings.ServiceType.Equals("GitHubCopilotSDK", StringComparison.OrdinalIgnoreCase) &&
-                !settings.AISettings.ServiceType.Equals("OpenAI", StringComparison.OrdinalIgnoreCase))
+                !settings.AISettings.ServiceType.Equals("OpenAI", StringComparison.OrdinalIgnoreCase) &&
+                !settings.AISettings.ServiceType.Equals("CodexSDK", StringComparison.OrdinalIgnoreCase))
             {
-                logger.LogError("AI configuration incomplete. Set endpoint for AzureOpenAI, or change ServiceType to GitHubCopilot/GitHubCopilotSDK/OpenAI.");
+                logger.LogError("AI configuration incomplete. Set endpoint for AzureOpenAI, or change ServiceType to GitHubCopilot/GitHubCopilotSDK/OpenAI/CodexSDK.");
                 logger.LogError("You can set them in Config/ai-config.local.env or as environment variables.");
                 Environment.Exit(1);
             }
@@ -584,7 +586,7 @@ internal static class Program
             logger.LogInformation("Chat IChatClient initialized via {Provider} for model: {ChatModel}",
                 serviceType, settings.AISettings.ChatModelId ?? chatDeployment);
 
-            var providerName = codeClient is Agents.Infrastructure.CopilotChatClient ? "GitHub Copilot" : "Azure OpenAI";
+            var providerName = ChatClientFactory.GetProviderName(codeClient, serviceType);
             var chatLogger = new ChatLogger(loggerFactory.CreateLogger<ChatLogger>(), providerName: providerName);
 
             var databasePath = settings.ApplicationSettings.MigrationDatabasePath;
@@ -1028,6 +1030,39 @@ internal static class Program
             }
         }
 
+        // Codex SDK: ChatGPT authentication is handled by the local Codex runtime.
+        if (aiSettings.ServiceType.Equals("CodexSDK", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrEmpty(aiSettings.Endpoint))
+            {
+                aiSettings.Endpoint = "codex-sdk://local";
+            }
+        }
+
+        var codexSdkPythonPath = Environment.GetEnvironmentVariable("CODEX_SDK_PYTHON_PATH");
+        if (!string.IsNullOrWhiteSpace(codexSdkPythonPath))
+            aiSettings.CodexSdkPythonPath = codexSdkPythonPath;
+
+        var codexSdkScriptPath = Environment.GetEnvironmentVariable("CODEX_SDK_SCRIPT_PATH");
+        if (!string.IsNullOrWhiteSpace(codexSdkScriptPath))
+            aiSettings.CodexSdkScriptPath = codexSdkScriptPath;
+
+        var codexSdkWorkingDirectory = Environment.GetEnvironmentVariable("CODEX_SDK_WORKING_DIRECTORY");
+        if (!string.IsNullOrWhiteSpace(codexSdkWorkingDirectory))
+            aiSettings.CodexSdkWorkingDirectory = codexSdkWorkingDirectory;
+
+        var codexSdkSandbox = Environment.GetEnvironmentVariable("CODEX_SDK_SANDBOX");
+        if (!string.IsNullOrWhiteSpace(codexSdkSandbox))
+            aiSettings.CodexSdkSandbox = codexSdkSandbox;
+
+        var codexSdkCodexPath = Environment.GetEnvironmentVariable("CODEX_SDK_CODEX_PATH");
+        if (!string.IsNullOrWhiteSpace(codexSdkCodexPath))
+            aiSettings.CodexSdkCodexPath = codexSdkCodexPath;
+
+        var codexSdkTimeout = Environment.GetEnvironmentVariable("CODEX_SDK_TIMEOUT_SECONDS");
+        if (int.TryParse(codexSdkTimeout, out var codexSdkTimeoutSeconds) && codexSdkTimeoutSeconds > 0)
+            aiSettings.CodexSdkTimeoutSeconds = codexSdkTimeoutSeconds;
+
         // Primary deployment (for code models)
         var endpoint = Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT");
         if (!string.IsNullOrEmpty(endpoint))
@@ -1102,6 +1137,8 @@ internal static class Program
         {
             aiSettings.UnitTestModelId = testModel;
         }
+
+        ApplyCodexSdkPrimaryModel(aiSettings, modelId);
 
         // Context Window Override (Explicitly set context size to avoid magic string detection)
         var contextWindowSize = Environment.GetEnvironmentVariable("AZURE_OPENAI_CONTEXT_WINDOW_SIZE");
@@ -1262,6 +1299,26 @@ internal static class Program
             chatProfile.MaxOutputTokens = chatMaxVal;
     }
 
+    internal static void ApplyCodexSdkPrimaryModel(AISettings aiSettings, string? modelId)
+    {
+        if (!aiSettings.ServiceType.Equals("CodexSDK", StringComparison.OrdinalIgnoreCase) ||
+            string.IsNullOrWhiteSpace(modelId))
+        {
+            return;
+        }
+
+        // appsettings.json and ai-config.env contain Azure-specific model
+        // defaults. CodexSDK uses one ChatGPT-accessible model across every
+        // agent so those defaults cannot override the selected Codex model.
+        aiSettings.DeploymentName = modelId;
+        aiSettings.ChatModelId = modelId;
+        aiSettings.ChatDeploymentName = modelId;
+        aiSettings.CobolAnalyzerModelId = modelId;
+        aiSettings.JavaConverterModelId = modelId;
+        aiSettings.DependencyMapperModelId = modelId;
+        aiSettings.UnitTestModelId = modelId;
+    }
+
     private static bool ValidateAndLoadConfiguration()
     {
         try
@@ -1274,12 +1331,13 @@ internal static class Program
                                    serviceType.Equals("GitHubModels", StringComparison.OrdinalIgnoreCase);
             var isGitHubCopilotSdk = serviceType.Equals("GitHubCopilotSDK", StringComparison.OrdinalIgnoreCase);
             var isDirectOpenAI = serviceType.Equals("OpenAI", StringComparison.OrdinalIgnoreCase);
+            var isCodexSdk = serviceType.Equals("CodexSDK", StringComparison.OrdinalIgnoreCase);
 
             var requiredSettings = new Dictionary<string, string?>();
 
-            if (isGitHubCopilotSdk)
+            if (isGitHubCopilotSdk || isCodexSdk)
             {
-                // GitHub Copilot SDK: only needs model ID, authentication handled by CLI
+                // Local SDK providers only need a model ID; their CLI/runtime owns authentication.
                 requiredSettings["AZURE_OPENAI_MODEL_ID"] = Environment.GetEnvironmentVariable("AZURE_OPENAI_MODEL_ID");
             }
             else if (isGitHubCopilot)
@@ -1307,7 +1365,7 @@ internal static class Program
             // API Key is optional for Azure if using Entra ID
             var apiKey = Environment.GetEnvironmentVariable("AZURE_OPENAI_API_KEY") ??
                          Environment.GetEnvironmentVariable("GITHUB_TOKEN");
-            if (!isGitHubCopilot && !isGitHubCopilotSdk && !isDirectOpenAI)
+            if (!isGitHubCopilot && !isGitHubCopilotSdk && !isDirectOpenAI && !isCodexSdk)
             {
                 if (!string.IsNullOrWhiteSpace(apiKey) && !apiKey.Contains("your-api-key") && !apiKey.Contains("placeholder"))
                 {
@@ -1390,13 +1448,14 @@ internal static class Program
             Console.WriteLine($"✅ Configuration Validation Successful ({serviceType})");
             Console.WriteLine("=====================================");
             Console.WriteLine($"Provider: {serviceType}");
-            if (!string.IsNullOrEmpty(endpoint))
+            if (!isCodexSdk && !isGitHubCopilotSdk && !string.IsNullOrEmpty(endpoint))
                 Console.WriteLine($"Endpoint: {endpoint}");
             Console.WriteLine($"Model: {modelId}");
-            if (!string.IsNullOrEmpty(deployment))
+            if (serviceType.Equals("AzureOpenAI", StringComparison.OrdinalIgnoreCase) &&
+                !string.IsNullOrEmpty(deployment))
                 Console.WriteLine($"Deployment: {deployment}");
-            if (!string.IsNullOrEmpty(apiKey) && apiKey.Length > 8)
-                Console.WriteLine($"API Key: {apiKey.Substring(0, Math.Min(8, apiKey.Length))}... ({apiKey.Length} chars)");
+            if (!isCodexSdk && !string.IsNullOrEmpty(apiKey))
+                Console.WriteLine("API Key: configured (value hidden)");
             Console.WriteLine();
 
             return true;
@@ -1458,9 +1517,10 @@ internal static class Program
             if (string.IsNullOrEmpty(settings.AISettings.Endpoint) &&
                 !settings.AISettings.ServiceType.Equals("GitHubCopilot", StringComparison.OrdinalIgnoreCase) &&
                 !settings.AISettings.ServiceType.Equals("GitHubCopilotSDK", StringComparison.OrdinalIgnoreCase) &&
-                !settings.AISettings.ServiceType.Equals("OpenAI", StringComparison.OrdinalIgnoreCase))
+                !settings.AISettings.ServiceType.Equals("OpenAI", StringComparison.OrdinalIgnoreCase) &&
+                !settings.AISettings.ServiceType.Equals("CodexSDK", StringComparison.OrdinalIgnoreCase))
             {
-                logger.LogError("AI configuration incomplete. Set endpoint for AzureOpenAI, or use ServiceType=GitHubCopilot/GitHubCopilotSDK.");
+                logger.LogError("AI configuration incomplete. Set endpoint for AzureOpenAI, or use ServiceType=GitHubCopilot/GitHubCopilotSDK/OpenAI/CodexSDK.");
                 Environment.Exit(1);
             }
 
@@ -1502,7 +1562,7 @@ internal static class Program
             IChatClient chatClient = ChatClientFactory.CreateChatClientFromSettings(settings.AISettings, logger);
             logger.LogInformation("AI clients initialized via {Provider}", reServiceType);
 
-            var providerName = codeClient is Agents.Infrastructure.CopilotChatClient ? "GitHub Copilot" : "Azure OpenAI";
+            var providerName = ChatClientFactory.GetProviderName(codeClient, reServiceType);
             var chatLogger = new ChatLogger(loggerFactory.CreateLogger<ChatLogger>(), providerName: providerName);
 
             ConfigureSmartChunking(settings, chatDeployment, logger);

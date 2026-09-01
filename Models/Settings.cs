@@ -76,7 +76,7 @@ public class AppSettings
 
 /// <summary>
 /// Represents the AI-specific settings.
-/// Supports multiple providers: AzureOpenAI, GitHubCopilot, OpenAI.
+/// Supports multiple providers: AzureOpenAI, GitHubCopilot, OpenAI, CodexSDK.
 /// </summary>
 public class AISettings
 {
@@ -85,6 +85,7 @@ public class AISettings
     /// "AzureOpenAI"   — Azure OpenAI Service (existing)
     /// "GitHubCopilot" — GitHub Models / Copilot endpoint (models.github.ai)
     /// "OpenAI"        — Direct OpenAI API
+    /// "CodexSDK"      — Local Codex SDK using an existing ChatGPT login
     /// </summary>
     public string ServiceType { get; set; } = "AzureOpenAI";
 
@@ -155,6 +156,24 @@ public class AISettings
     /// If not present, the system will auto-detect from ModelCapabilities.
     /// </summary>
     public int? ContextWindowSize { get; set; }
+
+    /// <summary>Python executable that has the openai-codex package installed.</summary>
+    public string CodexSdkPythonPath { get; set; } = OperatingSystem.IsWindows() ? "python" : "python3";
+
+    /// <summary>Path to the UTF-8 JSON sidecar script.</summary>
+    public string CodexSdkScriptPath { get; set; } = Path.Combine("Scripts", "codex_sdk_sidecar.py");
+
+    /// <summary>Existing directory exposed to the Codex thread.</summary>
+    public string CodexSdkWorkingDirectory { get; set; } = Directory.GetCurrentDirectory();
+
+    /// <summary>Allowed values are read-only and workspace-write.</summary>
+    public string CodexSdkSandbox { get; set; } = "read-only";
+
+    /// <summary>Optional explicit Codex executable. The SDK's pinned binary is used when empty.</summary>
+    public string CodexSdkCodexPath { get; set; } = string.Empty;
+
+    /// <summary>Per-request timeout for the sidecar and Codex turn.</summary>
+    public int CodexSdkTimeoutSeconds { get; set; } = 300;
 }
 
 /// <summary>

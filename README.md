@@ -1,7 +1,7 @@
 # Legacy Modernization Agents - COBOL to Java/C# Migration
 
 This open source migration framework was developed to demonstrate AI Agents capabilities for converting legacy code like COBOL to Java or C# .NET. Each Agent has a persona that can be edited depending on the desired outcome.
-The migration uses Microsoft Agent Framework with a multi-provider architecture supporting **Azure OpenAI** (Responses API + Chat Completions), **GitHub Copilot** (PAT or CLI-based SDK), and **direct OpenAI** to analyze COBOL code and its dependencies, then convert to either Java Quarkus or C# .NET (user's choice).
+The migration uses Microsoft Agent Framework with a multi-provider architecture supporting **Azure OpenAI** (Responses API + Chat Completions), **GitHub Copilot** (PAT or CLI-based SDK), **direct OpenAI**, and a local **Codex SDK** adapter with ChatGPT authentication. It analyzes COBOL code and its dependencies, then converts to either Java Quarkus or C# .NET (user's choice).
 
 ## 🎬 Portal Demo
 
@@ -51,7 +51,7 @@ The migration uses Microsoft Agent Framework with a multi-provider architecture 
 
 ### Supported AI Providers
 
-This project supports **four AI providers** with automatic model capability detection:
+This project supports **five AI providers** with automatic model capability detection:
 
 | Provider | ServiceType | Models | Auth | Interface |
 |----------|------------|--------|------|-----------|
@@ -59,6 +59,37 @@ This project supports **four AI providers** with automatic model capability dete
 | **GitHub Copilot** | `GitHubCopilot` | Claude Opus/Sonnet, Codex, GPT, Grok | GitHub PAT (`GITHUB_TOKEN`) | `IChatClient` via `models.github.ai` |
 | **GitHub Copilot SDK** | `GitHubCopilotSDK` | All Copilot models | `gh auth login` (CLI) | `CopilotChatClient` via stdio |
 | **OpenAI** | `OpenAI` | GPT-4o, o3, etc. | OpenAI API key | `IChatClient` |
+| **Codex SDK** | `CodexSDK` | Models available to the signed-in Codex account | ChatGPT sign-in; no API key | `CodexSdkChatClient` via a local Python sidecar |
+
+#### Codex SDK with ChatGPT authentication
+
+`CodexSDK` is a custom provider extension in this repository. It runs the local
+[Codex Python SDK](https://learn.chatgpt.com/docs/codex-sdk) and reuses a ChatGPT
+login. It does not send an API key through the application configuration.
+
+```bash
+python3 -m venv .venv-codex
+. .venv-codex/bin/activate
+python -m pip install -r Scripts/requirements-codex-sdk.txt
+python Scripts/codex_sdk_auth.py login-device
+python Scripts/codex_sdk_auth.py status
+
+export AZURE_OPENAI_SERVICE_TYPE="CodexSDK"
+export AZURE_OPENAI_MODEL_ID="gpt-5.6-terra"
+export CODEX_SDK_PYTHON_PATH="$PWD/.venv-codex/bin/python"
+export CODEX_SDK_WORKING_DIRECTORY="$PWD"
+export CODEX_SDK_SANDBOX="read-only"
+```
+
+In `CodexSDK` mode, `AZURE_OPENAI_MODEL_ID` is used for the chat, COBOL analysis,
+conversion, dependency mapping, and unit-test agents. The selected model must
+be available to the signed-in ChatGPT account.
+
+The adapter starts one ephemeral Codex thread per request. It denies approval
+requests, defaults to a read-only filesystem sandbox, transfers prompts through
+UTF-8 JSON on standard input, limits captured output, and terminates the process
+on cancellation or timeout. `workspace-write` is accepted only when explicitly
+configured; `full-access` is rejected.
 
 **Model-Aware Reasoning** — The framework auto-detects model capabilities from the model ID and adapts its reasoning strategy:
 

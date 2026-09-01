@@ -28,7 +28,7 @@ public abstract class AgentBase
     protected abstract string AgentName { get; }
 
     protected string ProviderName =>
-        ChatClient is CopilotChatClient ? "GitHub Copilot" : "Azure OpenAI";
+        ChatClientFactory.GetProviderName(ChatClient, Settings?.AISettings.ServiceType);
 
     /// <summary>Detected capabilities of the configured model (family, reasoning strategy, etc.).</summary>
     protected ModelCapabilities Capabilities { get; }
