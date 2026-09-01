@@ -76,6 +76,8 @@ dotnet run --project CobolToQuarkusMigration.csproj --no-build -- \
   --output "$PWD/evidence/codex-sdk-main-d5c6bec"
 ```
 
+この`--output`はGCE上の一時的な実行領域を指します。PUBLIC repoの`docs/reports/evidence/`には、生成された解析本文をコピーせず、公開可能な集計値とハッシュだけを保存します。そのため、実行時の出力先とreport内の証跡linkは意図的に異なります。
+
 ## 生成件数の差
 
 mainマージ前の実行ではFeature Descriptions 3件、Business Rules 13件でした。mainマージ後の最終実行では5件、16件でした。入力、model、SDK応答数、依存関係数は同じですが、生成モデルの出力件数は一致しません。
