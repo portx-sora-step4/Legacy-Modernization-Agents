@@ -204,6 +204,33 @@ public class BusinessLogicExtractorAgentTests
     }
 
     [Fact]
+    public void ParseBusinessLogicResponse_StructuredRuleWithBullets_AssignsContiguousUniqueIds()
+    {
+        var response = """
+            ## Business Purpose
+            Normalizes report selection criteria.
+
+            ## Business Rules
+            ### BR-1: Normalize placeholders
+            **Condition:** Placeholder values are present.
+            **Action:** Convert placeholders to blank filters.
+            - Stock number parts use fixed-width placeholders.
+            - Delivery numbers use fixed-width placeholders.
+            ### BR-2: Submit the request
+            **Condition:** The request is confirmed.
+            **Action:** Submit the report request.
+            """;
+
+        var result = BusinessLogicExtractorAgent.ParseBusinessLogicResponse(
+            new CobolFile { FileName = "REPORT.cbl" },
+            response);
+
+        result.BusinessRules.Select(rule => rule.Id).Should()
+            .Equal("BR-1", "BR-2", "BR-3", "BR-4");
+        result.BusinessRules.Select(rule => rule.Id).Should().OnlyHaveUniqueItems();
+    }
+
+    [Fact]
     public void AddSourceLineNumbers_UsesOneBasedStableReferences()
     {
         var numbered = BusinessLogicExtractorAgent.AddSourceLineNumbers(

@@ -2549,12 +2549,35 @@ ensure_rekt_containers() {
     fi
 }
 
+prepare_rekt_output_dir() {
+    local output_dir="$REPO_ROOT/output/rekt"
+    if ! mkdir -p "$output_dir"; then
+        echo -e "${RED}❌ Unable to create REKT output directory: $output_dir${NC}"
+        return 1
+    fi
+    if [[ ! -w "$output_dir" ]]; then
+        echo -e "${RED}❌ REKT output directory is not writable: $output_dir${NC}"
+        echo -e "${YELLOW}Create or repair the host directory before starting Docker.${NC}"
+        return 1
+    fi
+}
+
+finish_rekt_parse() {
+    local failed="$1"
+    if [[ "$failed" -gt 0 ]]; then
+        echo -e "${RED}❌ REKT parse failed for $failed program(s).${NC}"
+        return 1
+    fi
+    return 0
+}
+
 run_rekt_parse() {
     echo -e "${CYAN}╔══════════════════════════════════════════════════════════════╗${NC}"
     echo -e "${CYAN}║   Cobol-REKT: Parse COBOL → AST/CFG/Data JSON              ║${NC}"
     echo -e "${CYAN}╚══════════════════════════════════════════════════════════════╝${NC}"
 
     detect_docker_api_version
+    prepare_rekt_output_dir || return 1
     ensure_rekt_containers || return 1
 
     local cobol_count
@@ -3258,6 +3281,7 @@ PYEOF
         echo -e "${YELLOW}  or reference missing copybooks. Check with: grep 'EXEC DLI' source/<file>${NC}"
     fi
     echo -e "${BLUE}  Output: output/rekt/${NC}"
+    finish_rekt_parse "$failed"
 }
 
 run_rekt_ingest() {
@@ -3598,5 +3622,7 @@ check_chunking_health() {
     echo ""
 }
 
-# Run main function with all arguments
-main "$@"
+# Run main function with all arguments unless a test sources this file as a library.
+if [[ "${DOCTOR_SH_LIBRARY_ONLY:-false}" != "true" ]]; then
+    main "$@"
+fi

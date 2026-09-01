@@ -747,6 +747,11 @@ public class BusinessLogicExtractorAgent : AgentBase
             rules.Add(currentRule);
         }
 
+        for (var index = 0; index < rules.Count; index++)
+        {
+            rules[index].Id = $"BR-{index + 1}";
+        }
+
         return rules;
     }
 }

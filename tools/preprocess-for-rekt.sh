@@ -27,30 +27,35 @@ cpy_count=0
 # -print0 / read -d '' avoids issues with paths containing whitespace.
 while IFS= read -r -d '' cpy; do
     "$PYTHON" -c "
-import os, re, sys
+import os, re, sys, unicodedata
 
 source_path = sys.argv[1]
 preproc_dir = sys.argv[2]
 fname = os.path.basename(source_path)
 
-with open(source_path, 'r', encoding='latin-1') as f:
-    content = f.read()
+source_bytes = open(source_path, 'rb').read()
+try:
+    content = source_bytes.decode('utf-8')
+    source_encoding = 'utf-8'
+except UnicodeDecodeError:
+    content = source_bytes.decode('latin-1')
+    source_encoding = 'latin-1'
+content = content.replace('\r\n', '\n').replace('\r', '\n')
 
 original = content
 
 # Strip sequence numbers that leaked from columns 73-80 into source text.
+def display_width(value):
+    return sum(2 if unicodedata.east_asian_width(char) in ('F', 'W') else 1 for char in value)
+
 def strip_trailing_seq(text):
     out = []
     for line in text.split('\n'):
         raw = line.rstrip()
-        # Skip comment lines
-        if len(raw) > 6 and raw[6] == '*':
-            out.append(line)
-            continue
         # Pattern 1: trailing seq separated by whitespace on long fixed-format lines
-        m = re.match(r'^(.+?)\s+(\d{8})$', raw) if len(raw) > 72 else None
-        if m:
-            out.append(m.group(1))
+        m = re.match(r'^(.+?)(\s+)(\d{8})$', raw)
+        if m and display_width(m.group(1) + m.group(2)) >= 72:
+            out.append((m.group(1) + m.group(2)).rstrip())
             continue
         # Pattern 2: trailing seq concatenated after period
         m = re.match(r'^(.+\.)(\d{8})$', raw)
@@ -200,7 +205,7 @@ content = ''.join(result_lines)
 content = re.sub(r'(\b\d+),(\d+\b)', r'\1.\2', content)
 
 if content != original:
-    with open(os.path.join(preproc_dir, fname), 'w', encoding='latin-1') as f:
+    with open(os.path.join(preproc_dir, fname), 'w', encoding=source_encoding) as f:
         f.write(content)
     sys.exit(0)
 else:
@@ -219,30 +224,35 @@ done < <(find "$SOURCE_DIR" \
 cbl_count=0
 while IFS= read -r -d '' cbl; do
     "$PYTHON" -c "
-import os, re, sys
+import os, re, sys, unicodedata
 
 source_path = sys.argv[1]
 source_dir = sys.argv[2]
 preproc_dir = sys.argv[3]
 fname = os.path.basename(source_path)
 
-with open(source_path, 'r', encoding='latin-1') as f:
-    content = f.read()
+source_bytes = open(source_path, 'rb').read()
+try:
+    content = source_bytes.decode('utf-8')
+    source_encoding = 'utf-8'
+except UnicodeDecodeError:
+    content = source_bytes.decode('latin-1')
+    source_encoding = 'latin-1'
+content = content.replace('\r\n', '\n').replace('\r', '\n')
 
 original = content
 
 # 0. Strip trailing sequence numbers embedded in content area
+def display_width(value):
+    return sum(2 if unicodedata.east_asian_width(char) in ('F', 'W') else 1 for char in value)
+
 def strip_trailing_seq(text):
     out = []
     for line in text.split('\n'):
         raw = line.rstrip()
-        # Skip comment lines
-        if len(raw) > 6 and raw[6] == '*':
-            out.append(line)
-            continue
-        m = re.match(r'^(.+?)\s+(\d{8})$', raw) if len(raw) > 72 else None
-        if m:
-            out.append(m.group(1))
+        m = re.match(r'^(.+?)(\s+)(\d{8})$', raw)
+        if m and display_width(m.group(1) + m.group(2)) >= 72:
+            out.append((m.group(1) + m.group(2)).rstrip())
             continue
         m = re.match(r'^(.+\.)(\d{8})$', raw)
         if m:
@@ -822,7 +832,7 @@ def _strip_audit_stamps(text):
 content = _strip_audit_stamps(content)
 
 if content != original:
-    with open(os.path.join(preproc_dir, fname), 'w', encoding='latin-1') as f:
+    with open(os.path.join(preproc_dir, fname), 'w', encoding=source_encoding) as f:
         f.write(content)
     sys.exit(0)
 else:
