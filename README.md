@@ -91,6 +91,8 @@ UTF-8 JSON on standard input, limits captured output, and terminates the process
 on cancellation or timeout. `workspace-write` is accepted only when explicitly
 configured; `full-access` is rejected.
 
+![Codex SDK provider architecture](docs/codex-sdk-provider-architecture.svg)
+
 **Model-Aware Reasoning** — The framework auto-detects model capabilities from the model ID and adapts its reasoning strategy:
 
 | Model Family | Detection | Reasoning Strategy | Applied Via |
