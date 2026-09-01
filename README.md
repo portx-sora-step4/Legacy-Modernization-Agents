@@ -97,6 +97,8 @@ configured; `full-access` is rejected.
 
 The post-merge GCE verification result is recorded in
 [the Codex SDK GCE verification report](docs/reports/codex-sdk-gce-verification-2026-09-01.md).
+The broader private-corpus evaluation is recorded in
+[the Codex SDK broad verification report dated 2026-09-02 JST](docs/reports/codex-sdk-broad-private-corpus-verification-2026-09-02.md).
 
 **Model-Aware Reasoning** — The framework auto-detects model capabilities from the model ID and adapts its reasoning strategy:
 
