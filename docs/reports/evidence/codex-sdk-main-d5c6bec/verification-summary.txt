@@ -1,0 +1,17 @@
+main_sha=d5c6bec0789d49056460f5ea1bc9dc189a478726
+source_files=3
+dotnet_tests_passed=145
+python_tests_passed=7
+direct_probe_text=CODEX_SDK_OK
+direct_probe_status=completed
+reverse_engineering_exit_code=0
+sdk_responses=8
+feature_descriptions=5
+business_rules=16
+dependencies=8
+codex_sdk_error_matches=0
+access_token_error_matches=0
+unsupported_model_matches=0
+fail_line_matches=0
+secret_pattern_matches=0
+run_log_sha256=5da70facc5c409e74854156c66519e3e0c6ac92ab7cae76adb4c584aefb260f5

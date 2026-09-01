@@ -1,0 +1,2 @@
+final_runtime_verification=pass
+semantic_count_contract=non_deterministic_observation

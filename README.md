@@ -95,6 +95,9 @@ configured; `full-access` is rejected.
 
 ![Codex SDK provider architecture](docs/codex-sdk-provider-architecture.svg)
 
+The post-merge GCE verification result is recorded in
+[the Codex SDK GCE verification report](docs/reports/codex-sdk-gce-verification-2026-09-01.md).
+
 **Model-Aware Reasoning** — The framework auto-detects model capabilities from the model ID and adapts its reasoning strategy:
 
 | Model Family | Detection | Reasoning Strategy | Applied Via |
