@@ -394,11 +394,16 @@ public class DependencyMapperAgent : AgentBase, IDependencyMapperAgent
 
                 foreach (var copybook in copybooks)
                 {
+                    var sourceFile = cobolFiles.FirstOrDefault(file =>
+                        file.FileName.Equals(program, StringComparison.OrdinalIgnoreCase));
                     var dependency = new DependencyRelationship
                     {
                         SourceFile = program,
                         TargetFile = copybook,
                         DependencyType = "COPY",
+                        LineNumber = sourceFile is null
+                            ? 0
+                            : FindCopybookReferenceLine(sourceFile.Content, copybook),
                         Context = "Copybook inclusion"
                     };
                     dependencyMap.Dependencies.Add(dependency);
@@ -432,6 +437,35 @@ public class DependencyMapperAgent : AgentBase, IDependencyMapperAgent
             dependencyMap.AnalysisInsights = $"Dependency insights unavailable: {ex.Message}";
             return false;
         }
+    }
+
+    internal static int FindCopybookReferenceLine(string cobolContent, string copybookName)
+    {
+        var bareName = Path.GetFileNameWithoutExtension(copybookName);
+        if (string.IsNullOrWhiteSpace(bareName))
+        {
+            return 0;
+        }
+
+        var referencePattern = new Regex(
+            $@"\b(?:COPY|INCLUDE)\s+['""]?{Regex.Escape(bareName)}(?:\.cpy)?(?:['""]|\s|\.|$)",
+            RegexOptions.IgnoreCase);
+        var lines = cobolContent.Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Replace('\r', '\n')
+            .Split('\n');
+
+        for (var index = 0; index < lines.Length; index++)
+        {
+            var line = lines[index];
+            var isFixedFormatComment = line.Length > 6 && (line[6] == '*' || line[6] == '/');
+            var isFreeFormatComment = line.TrimStart().StartsWith("*>", StringComparison.Ordinal);
+            if (!isFixedFormatComment && !isFreeFormatComment && referencePattern.IsMatch(line))
+            {
+                return index + 1;
+            }
+        }
+
+        return 0;
     }
 
     private void CalculateMetrics(DependencyMap dependencyMap, List<CobolFile> cobolFiles)

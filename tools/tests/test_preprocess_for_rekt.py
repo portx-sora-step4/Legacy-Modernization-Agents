@@ -2,12 +2,26 @@
 import os
 import shutil
 import subprocess
+import unicodedata
 import unittest
 from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_PATH = REPO_ROOT / "tools" / "preprocess-for-rekt.sh"
+
+
+def bash_executable():
+    if os.name != "nt":
+        return "bash"
+    candidates = [
+        os.environ.get("GIT_BASH"),
+        str(Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "Git" / "bin" / "bash.exe"),
+    ]
+    for candidate in candidates:
+        if candidate and Path(candidate).is_file():
+            return candidate
+    raise RuntimeError("Git Bash was not found; set GIT_BASH to bash.exe")
 WORK_ROOT = REPO_ROOT / "tools" / "tests" / "_work"
 
 
@@ -31,18 +45,22 @@ class PreprocessForRektTests(unittest.TestCase):
     def run_preprocessor(self):
         env = os.environ.copy()
         env["REKT_NO_STUB_COPYBOOKS"] = "true"
+        command = [str(SCRIPT_PATH), str(self.source_dir)]
+        if os.name == "nt":
+            command.insert(0, bash_executable())
         return subprocess.run(
-            [str(SCRIPT_PATH), str(self.source_dir)],
+            command,
             cwd=REPO_ROOT,
             env=env,
             capture_output=True,
             check=True,
+            encoding="utf-8",
             text=True,
         )
 
-    def preprocessed_text(self, filename):
+    def preprocessed_text(self, filename, encoding="latin-1"):
         return (self.source_dir / ".preprocessed" / filename).read_text(
-            encoding="latin-1"
+            encoding=encoding
         )
 
     @staticmethod
@@ -140,6 +158,43 @@ class PreprocessForRektTests(unittest.TestCase):
             ),
             output,
         )
+
+    def test_preserves_utf8_text_and_strips_fixed_format_sequence_area(self):
+        content = "       01  WS-LABEL PIC X(20) VALUE '港在庫一覧表'."
+        fixed_format_line = content.ljust(72) + "00007500"
+        fixed_format_comment = "  |   * change-history comment".ljust(72) + "00007500"
+        unicode_prefix = "               ' 入力して下さい。 '"
+        while sum(
+            2 if unicodedata.east_asian_width(char) in ("F", "W") else 1
+            for char in unicode_prefix
+        ) < 72:
+            unicode_prefix += " "
+        unicode_fixed_format_line = unicode_prefix + "00010700"
+        (self.source_dir / "utf8-fixed-format.cbl").write_text(
+            "\n".join(
+                [
+                    "       IDENTIFICATION DIVISION.",
+                    "       PROGRAM-ID. UTF8TEST.",
+                    "       DATA DIVISION.",
+                    "       WORKING-STORAGE SECTION.",
+                    fixed_format_line,
+                    fixed_format_comment,
+                    unicode_fixed_format_line,
+                    "       PROCEDURE DIVISION.",
+                    "           GOBACK.",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        self.run_preprocessor()
+        output = self.preprocessed_text("utf8-fixed-format.cbl", encoding="utf-8")
+
+        self.assertIn("港在庫一覧表", output)
+        self.assertNotIn("00007500", output)
+        self.assertNotIn("00010700", output)
+        self.assertNotIn("æ¸¯", output)
 
 
 if __name__ == "__main__":
