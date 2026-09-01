@@ -25,6 +25,7 @@ ChatGPT 認証を使う Codex SDK 接続は、API キーなし・GCE・読み取
 
 | 項目 | 固定値 |
 |---|---|
+| 実行日 | 2026-09-02 JST |
 | repository commit | `dffcb68ee97efc5ac3310c18f19b23631719c5b6` |
 | 実行環境 | GCEの隔離run root |
 | Codex接続 | ChatGPT認証済みCodex SDK、`gpt-5.6-terra` |
@@ -138,7 +139,7 @@ parser結果がそれぞれ`full`、`deps-only`、`timeout`となった重要対
 
 ## 公開境界
 
-本レポートは集計値と再現可能な方法だけを記載します。顧客名、顧客repository、program名、入力path、入力hash、生成本文、認証情報は含めません。
+本レポートは集計値と、非公開コーパスを保有する管理環境で同じ条件を再実行するための方法だけを記載します。公開情報だけでは生成本文や判定を再現できません。顧客名、顧客repository、program名、入力path、入力hash、生成本文、認証情報は含めません。
 
 ## 後片付け
 
