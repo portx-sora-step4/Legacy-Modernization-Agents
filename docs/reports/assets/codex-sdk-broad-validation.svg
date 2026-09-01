@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Codex SDKを使った非公開COBOLコーパスの多数検証</title>
+  <desc id="desc">静的解析、Codex SDK、独立期待値を段階別に比較し、実行証拠と内容評価を分離した公開用の図。</desc>
+  <defs>
+    <style>
+      text { font-family: "Meiryo UI", Meiryo, sans-serif; fill: #171717; }
+      .eyebrow { font-size: 18px; font-weight: 700; letter-spacing: 2px; fill: #625f58; }
+      .title { font-size: 44px; font-weight: 800; }
+      .subtitle { font-size: 21px; fill: #56534d; }
+      .panel-title { font-size: 27px; font-weight: 800; }
+      .number { font-size: 42px; font-weight: 800; }
+      .body { font-size: 19px; }
+      .small { font-size: 16px; fill: #5f5b55; }
+      .badge { font-size: 17px; font-weight: 800; }
+      .verdict { font-size: 30px; font-weight: 800; }
+      .small-invert { font-size: 16px; fill: #d8d2c7; }
+      .verdict-invert { font-size: 30px; font-weight: 800; fill: #fffdf8; }
+    </style>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 Z" fill="#79746b"/>
+    </marker>
+  </defs>
+  <rect width="1600" height="900" fill="#f5f1e8"/>
+  <rect x="52" y="44" width="1496" height="812" rx="4" fill="#fffdf8" stroke="#d8d2c7" stroke-width="2"/>
+  <text x="92" y="98" class="eyebrow">CODEX SDK / PRIVATE CORPUS VERIFICATION</text>
+  <text x="92" y="158" class="title">処理完了と内容の正しさは、別に判定する</text>
+  <text x="92" y="202" class="subtitle">非公開COBOLコーパスを層化し、静的解析・Codex SDK・独立期待値を横断比較</text>
+
+  <line x1="505" y1="468" x2="555" y2="468" stroke="#79746b" stroke-width="4" marker-end="url(#arrow)"/>
+  <line x1="1010" y1="468" x2="1060" y2="468" stroke="#79746b" stroke-width="4" marker-end="url(#arrow)"/>
+
+  <g transform="translate(92 266)">
+    <rect width="413" height="420" rx="10" fill="#f0eee8" stroke="#c9c3b8" stroke-width="2"/>
+    <rect width="413" height="10" rx="5" fill="#3579a8"/>
+    <text x="30" y="58" class="panel-title">1. 入力・グラフ・パーサー</text>
+    <text x="30" y="118" class="number">200 program</text>
+    <text x="30" y="151" class="body">規模・依存度・構文で層化</text>
+    <line x1="30" y1="181" x2="383" y2="181" stroke="#d1ccc2"/>
+    <text x="30" y="224" class="body">完全出力</text>
+    <text x="218" y="224" class="body" font-weight="700">26</text>
+    <text x="30" y="268" class="body">依存関係のみ</text>
+    <text x="218" y="268" class="body" font-weight="700">46</text>
+    <text x="30" y="312" class="body">timeout</text>
+    <text x="218" y="312" class="body" font-weight="700" fill="#a4473d">128</text>
+    <rect x="30" y="368" width="150" height="34" rx="17" fill="#f1d8d3"/>
+    <text x="105" y="391" text-anchor="middle" class="badge" fill="#87372f">failure</text>
+  </g>
+
+  <g transform="translate(555 266)">
+    <rect width="455" height="420" rx="10" fill="#f0eee8" stroke="#c9c3b8" stroke-width="2"/>
+    <rect width="455" height="10" rx="5" fill="#47886d"/>
+    <text x="30" y="58" class="panel-title">2. Codex SDK 実行</text>
+    <text x="30" y="118" class="number">60 program</text>
+    <text x="30" y="151" class="body">6 batch・read-only sandbox</text>
+    <line x1="30" y1="181" x2="425" y2="181" stroke="#d1ccc2"/>
+    <text x="30" y="224" class="body">確認する証拠</text>
+    <text x="30" y="266" class="body">・終了コードと completion contract</text>
+    <text x="30" y="302" class="body">・生成物 hash、UTF-8、JSON</text>
+    <text x="30" y="338" class="body">・入力への根拠参照と秘密情報</text>
+    <rect x="30" y="368" width="188" height="34" rx="17" fill="#d6eadf"/>
+    <text x="124" y="391" text-anchor="middle" class="badge" fill="#27674f">実行証拠を保存</text>
+  </g>
+
+  <g transform="translate(1060 266)">
+    <rect width="448" height="420" rx="10" fill="#f0eee8" stroke="#c9c3b8" stroke-width="2"/>
+    <rect width="448" height="10" rx="5" fill="#b2762e"/>
+    <text x="30" y="58" class="panel-title">3. 独立期待値との照合</text>
+    <text x="30" y="118" class="number">mixed</text>
+    <text x="30" y="151" class="body">完了を Green とみなさない</text>
+    <line x1="30" y1="181" x2="418" y2="181" stroke="#d1ccc2"/>
+    <text x="30" y="224" class="body">確認した差分</text>
+    <text x="30" y="266" class="body">・固定形式コメントの誤検出</text>
+    <text x="30" y="302" class="body">・SQL INCLUDE の分類重複</text>
+    <text x="30" y="338" class="body">・複数行 LINK の欠落</text>
+    <text x="30" y="374" class="body">・動的 CALL の誤分類</text>
+  </g>
+
+  <g transform="translate(92 733)">
+    <rect width="1416" height="78" rx="8" fill="#171717"/>
+    <text x="32" y="33" class="small-invert">総合判定</text>
+    <text x="32" y="62" class="verdict-invert">多数処理の実行経路は確認。内容の正確性と実行時等価性は未確定。</text>
+  </g>
+</svg>
